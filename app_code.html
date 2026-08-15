@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的閱讀追蹤</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f0; color: #2c2c2c; }
+  header { background: #2c2c2c; color: #fff; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  header span { font-size: 12px; color: #aaa; }
+  .tabs { display: flex; background: #fff; border-bottom: 1px solid #e5e5e5; }
+  .tab { flex: 1; padding: 12px; text-align: center; font-size: 14px; cursor: pointer; color: #888; border-bottom: 3px solid transparent; }
+  .tab.active { color: #2c2c2c; border-bottom-color: #2c2c2c; font-weight: 600; }
+  .panel { display: none; padding: 16px; }
+  .panel.active { display: block; }
+
+  /* Setup */
+  .setup-card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .setup-card h3 { font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .setup-card label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; }
+  .setup-card input[type=text] { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+  .btn { display: inline-block; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-primary { background: #2c2c2c; color: #fff; width: 100%; margin-top: 10px; }
+  .btn-secondary { background: #f0f0f0; color: #2c2c2c; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; display: inline-block; }
+  .status-dot.ok { background: #4caf50; }
+  .status-dot.err { background: #f44336; }
+
+  /* Shelf */
+  .shelf-controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid #ddd; background: #fff; }
+  .filter-btn.active { background: #2c2c2c; color: #fff; border-color: #2c2c2c; }
+  .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .book-card { background: #fff; border-radius: 10px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); cursor: pointer; transition: transform 0.15s; }
+  .book-card:hover { transform: translateY(-2px); }
+  .book-cover { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 6px; background: #e5e5e5; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #999; margin-bottom: 8px; overflow: hidden; }
+  .book-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .book-title { font-size: 12px; font-weight: 600; line-height: 1.4; margin-bottom: 4px; }
+  .book-author { font-size: 11px; color: #888; }
+  .book-badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-top: 4px; }
+  .badge-weread { background: #e8f5e9; color: #388e3c; }
+  .badge-kindle { background: #e3f2fd; color: #1565c0; }
+  .badge-reading { background: #fff3e0; color: #e65100; }
+  .badge-done { background: #f3e5f5; color: #6a1b9a; }
+
+  /* Today */
+  .today-card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .today-card h3 { font-size: 14px; color: #666; margin-bottom: 8px; }
+  .today-stat { font-size: 32px; font-weight: 700; color: #2c2c2c; }
+  .today-stat span { font-size: 14px; font-weight: 400; color: #888; }
+  .progress-bar { height: 6px; background: #eee; border-radius: 3px; margin-top: 8px; }
+  .progress-fill { height: 100%; border-radius: 3px; background: #2c2c2c; transition: width 0.4s; }
+  .log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+  .log-item:last-child { border-bottom: none; }
+  .log-title { font-size: 13px; font-weight: 600; }
+  .log-detail { font-size: 12px; color: #888; }
+  .add-log-btn { width: 100%; padding: 12px; border: 2px dashed #ddd; border-radius: 10px; text-align: center; color: #aaa; font-size: 14px; cursor: pointer; background: none; margin-top: 8px; }
+  .add-log-btn:hover { border-color: #2c2c2c; color: #2c2c2c; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: flex-end; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 20px 20px 0 0; padding: 24px; width: 100%; max-height: 80vh; overflow-y: auto; }
+  .modal h2 { font-size: 17px; margin-bottom: 16px; }
+  .modal select, .modal input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+  .modal-close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
+
+  /* Upload */
+  .upload-zone { border: 2px dashed #ddd; border-radius: 12px; padding: 30px; text-align: center; color: #aaa; cursor: pointer; margin-bottom: 12px; }
+  .upload-zone:hover { border-color: #2c2c2c; color: #2c2c2c; }
+  .upload-zone input { display: none; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: #aaa; font-size: 14px; }
+
+  /* Navbar */
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #eee; display: flex; z-index: 50; }
+  nav a { flex: 1; padding: 10px 0 14px; text-align: center; font-size: 10px; color: #aaa; text-decoration: none; cursor: pointer; }
+  nav a.active { color: #2c2c2c; }
+  nav a svg { display: block; margin: 0 auto 2px; }
+  main { padding-bottom: 70px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 我的閱讀追蹤</h1>
+  <span id="lastSync">尚未同步</span>
+</header>
+
+<main>
+  <!-- 今日閱讀 -->
+  <div id="panel-today" class="panel active" style="padding-top:12px;">
+    <div class="today-card">
+      <h3>今日閱讀時間</h3>
+      <div class="today-stat" id="todayMin">0 <span>分鐘</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="todayBar" style="width:0%"></div></div>
+      <div style="font-size:11px;color:#aaa;margin-top:4px;">目標：<span id="dailyGoalDisplay">30</span> 分鐘</div>
+    </div>
+    <div class="today-card">
+      <h3>今日閱讀記錄</h3>
+      <div id="todayLogs"></div>
+      <button class="add-log-btn" onclick="openLogModal()">＋ 新增閱讀記錄</button>
+    </div>
+    <div class="today-card">
+      <h3>本週趨勢</h3>
+      <canvas id="weekChart" width="300" height="100" style="width:100%;height:auto;"></canvas>
+    </div>
+  </div>
+
+  <!-- 書架 -->
+  <div id="panel-shelf" class="panel">
+    <div class="shelf-controls">
+      <button class="filter-btn active" onclick="filterShelf('all',this)">全部</button>
+      <button class="filter-btn" onclick="filterShelf('reading',this)">閱讀中</button>
+      <button class="filter-btn" onclick="filterShelf('done',this)">已完成</button>
+      <button class="filter-btn" onclick="filterShelf('weread',this)">微信讀書</button>
+      <button class="filter-btn" onclick="filterShelf('kindle',this)">Kindle</button>
+    </div>
+    <div class="book-grid" id="bookGrid"></div>
+    <div class="empty-state" id="shelfEmpty" style="display:none;">
+      書架是空的<br>請先在設定頁連接微信讀書或上傳 Kindle 筆記
+    </div>
+  </div>
+
+  <!-- 設定 -->
+  <div id="panel-settings" class="panel">
+    <!-- 微信讀書 -->
+    <div class="setup-card">
+      <h3><span class="status-dot" id="wereadDot"></span> 微信讀書 API</h3>
+      <label>你的 API 金鑰（wrk- 開頭）</label>
+      <input type="text" id="wereadToken" placeholder="wrk-xxxxxxxxxxxxxxxx">
+      <button class="btn btn-primary" onclick="saveWereadToken()">連接並同步書架</button>
+      <div id="wereadMsg" style="font-size:12px;color:#888;margin-top:8px;"></div>
+    </div>
+
+    <!-- Kindle -->
+    <div class="setup-card">
+      <h3><span class="status-dot" id="kindleDot"></span> Kindle（My Clippings.txt）</h3>
+      <label>從 Kindle 寄出 My Clippings.txt 到你的 Gmail，再下載後上傳這裡</label>
+      <div class="upload-zone" onclick="document.getElementById('clippingsFile').click()">
+        📂 點此上傳 My Clippings.txt
+        <input type="file" id="clippingsFile" accept=".txt" onchange="parseClippings(event)">
+        <div id="clippingsInfo" style="font-size:12px;margin-top:4px;"></div>
+      </div>
+    </div>
+
+    <!-- 目標設定 -->
+    <div class="setup-card">
+      <h3>⚙️ 每日閱讀目標</h3>
+      <label>目標分鐘數</label>
+      <input type="text" id="goalInput" placeholder="30">
+      <button class="btn btn-primary" onclick="saveGoal()">儲存目標</button>
+    </div>
+  </div>
+</main>
+
+<!-- 底部導覽 -->
+<nav>
+  <a class="active" onclick="showPanel('today',this)">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    今日
+  </a>
+  <a onclick="showPanel('shelf',this)">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+    書架
+  </a>
+  <a onclick="showPanel('settings',this)">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    設定
+  </a>
+</nav>
+
+<!-- 新增記錄彈窗 -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeLogModal()">✕</button>
+    <h2>新增閱讀記錄</h2>
+    <label style="font-size:13px;color:#666;display:block;margin-bottom:6px;">選擇書籍</label>
+    <select id="logBook"></select>
+    <label style="font-size:13px;color:#666;display:block;margin-bottom:6px;">閱讀分鐘數</label>
+    <input type="number" id="logMin" placeholder="例如：30" min="1" max="480">
+    <label style="font-size:13px;color:#666;display:block;margin-bottom:6px;">備註（可選）</label>
+    <input type="text" id="logNote" placeholder="今天讀到了...">
+    <button class="btn btn-primary" onclick="saveLog()">儲存記錄</button>
+  </div>
+</div>
+
+<script>
+// ─── 資料層 ───────────────────────────────────────────────
+const DB = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+};
+
+let books = DB.get('books') || [];
+let logs  = DB.get('logs')  || [];
+let goal  = DB.get('goal')  || 30;
+
+function saveBooks() { DB.set('books', books); }
+function saveLogs()  { DB.set('logs', logs); }
+
+// ─── 導覽 ─────────────────────────────────────────────────
+function showPanel(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  el.classList.add('active');
+  if (id === 'today') renderToday();
+  if (id === 'shelf') renderShelf('all');
+}
+
+// ─── 微信讀書 API ──────────────────────────────────────────
+function saveWereadToken() {
+  const token = document.getElementById('wereadToken').value.trim();
+  if (!token.startsWith('wrk-')) {
+    document.getElementById('wereadMsg').textContent = '⚠️ 金鑰格式不對，應以 wrk- 開頭';
+    return;
+  }
+  DB.set('wereadToken', token);
+  document.getElementById('wereadMsg').textContent = '正在連接...';
+  fetchWereadShelf(token);
+}
+
+function fetchWereadShelf(token) {
+  // 因瀏覽器 CORS 限制，需透過代理或在 Cloudflare Worker 中轉發
+  // 開發模式：載入示例資料（部署後替換為真實 API 呼叫）
+  const msg = document.getElementById('wereadMsg');
+  
+  // 嘗試呼叫（實際部署後會成功）
+  fetch(`https://weread.qq.com/api/shelf/sync?token=${token}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.books && data.books.length > 0) {
+        const newBooks = data.books.map(b => ({
+          id: 'wr_' + b.bookId,
+          title: b.title,
+          author: b.author,
+          cover: b.cover,
+          source: 'weread',
+          status: b.readingProgress >= 100 ? 'done' : 'reading',
+          progress: b.readingProgress || 0,
+          readingTime: b.readingTime || 0,
+        }));
+        // 合併（不重複）
+        newBooks.forEach(nb => {
+          if (!books.find(b => b.id === nb.id)) books.push(nb);
+        });
+        saveBooks();
+        document.getElementById('wereadDot').className = 'status-dot ok';
+        msg.textContent = `✅ 已同步 ${newBooks.length} 本書`;
+        document.getElementById('lastSync').textContent = '剛剛同步';
+      }
+    })
+    .catch(() => {
+      // CORS 在本地會失敗；顯示指引
+      document.getElementById('wereadDot').className = 'status-dot err';
+      msg.innerHTML = '⚠️ 本地測試時因瀏覽器安全限制無法直接呼叫 API。<br>請將 app_code.html 上傳到 GitHub Pages 後再試，或使用示例資料測試介面。<br><button onclick="loadSampleData()" style="margin-top:6px;padding:6px 12px;border-radius:6px;border:1px solid #ddd;cursor:pointer;font-size:12px;">載入示例資料</button>';
+    });
+}
+
+function loadSampleData() {
+  const sample = [
+    { id:'wr_1', title:'原子習慣', author:'詹姆斯．克利爾', cover:'', source:'weread', status:'done', progress:100, readingTime:420 },
+    { id:'wr_2', title:'思考，快與慢', author:'丹尼爾．康納曼', cover:'', source:'weread', status:'reading', progress:62, readingTime:210 },
+    { id:'wr_3', title:'窮查理的普通常識', author:'查理．蒙格', cover:'', source:'weread', status:'reading', progress:33, readingTime:90 },
+  ];
+  sample.forEach(nb => { if (!books.find(b => b.id === nb.id)) books.push(nb); });
+  saveBooks();
+  document.getElementById('wereadDot').className = 'status-dot ok';
+  document.getElementById('wereadMsg').textContent = '✅ 示例資料已載入（3本書）';
+}
+
+// ─── Kindle My Clippings.txt 解析 ─────────────────────────
+function parseClippings(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const entries = text.split('==========');
+    const bookMap = {};
+    let noteCount = 0;
+
+    entries.forEach(entry => {
+      const lines = entry.trim().split('\n').filter(l => l.trim());
+      if (lines.length < 2) return;
+      const titleLine = lines[0].trim();
+      // 格式：書名 (作者名) 或 書名
+      const match = titleLine.match(/^(.+?)\s*\((.+?)\)\s*$/);
+      const title  = match ? match[1].trim() : titleLine;
+      const author = match ? match[2].trim() : '';
+      const key = title;
+      if (!bookMap[key]) bookMap[key] = { title, author, notes: [], lastDate: null };
+      // 解析日期行
+      const dateLine = lines[1] || '';
+      const dateMatch = dateLine.match(/\d{4}年\d{1,2}月\d{1,2}日|\w+ \w+ \d+, \d{4}/);
+      if (dateMatch) bookMap[key].lastDate = dateMatch[0];
+      if (lines[2]) { bookMap[key].notes.push(lines.slice(2).join(' ')); noteCount++; }
+    });
+
+    // 合併到書架
+    let added = 0;
+    Object.values(bookMap).forEach(b => {
+      const id = 'kl_' + btoa(encodeURIComponent(b.title)).slice(0, 12);
+      if (!books.find(bk => bk.id === id)) {
+        books.push({ id, title: b.title, author: b.author, cover: '', source: 'kindle', status: 'reading', progress: 0, readingTime: 0, notes: b.notes, lastDate: b.lastDate });
+        added++;
+      }
+    });
+    saveBooks();
+    document.getElementById('kindleDot').className = 'status-dot ok';
+    document.getElementById('clippingsInfo').textContent = `✅ 解析完成：${Object.keys(bookMap).length} 本書，${noteCount} 條筆記，新增 ${added} 本到書架`;
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ─── 書架渲染 ──────────────────────────────────────────────
+let currentFilter = 'all';
+function filterShelf(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderShelf(f);
+}
+
+function renderShelf(filter) {
+  const grid = document.getElementById('bookGrid');
+  const empty = document.getElementById('shelfEmpty');
+  let list = books;
+  if (filter === 'reading') list = books.filter(b => b.status === 'reading');
+  if (filter === 'done')    list = books.filter(b => b.status === 'done');
+  if (filter === 'weread')  list = books.filter(b => b.source === 'weread');
+  if (filter === 'kindle')  list = books.filter(b => b.source === 'kindle');
+
+  if (list.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = list.map(b => `
+    <div class="book-card">
+      <div class="book-cover">${b.cover ? `<img src="${b.cover}" alt="">` : '📖'}</div>
+      <div class="book-title">${b.title}</div>
+      <div class="book-author">${b.author}</div>
+      <span class="book-badge ${b.source === 'weread' ? 'badge-weread' : 'badge-kindle'}">${b.source === 'weread' ? '微信讀書' : 'Kindle'}</span>
+      <span class="book-badge ${b.status === 'done' ? 'badge-done' : 'badge-reading'}">${b.status === 'done' ? '已完成' : '閱讀中'}</span>
+      ${b.progress > 0 ? `<div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:${b.progress}%"></div></div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ─── 今日閱讀 ─────────────────────────────────────────────
+function todayKey() { return 'logs_' + new Date().toISOString().slice(0,10); }
+
+function renderToday() {
+  const todayLogs = logs.filter(l => l.date === new Date().toISOString().slice(0,10));
+  const totalMin = todayLogs.reduce((s, l) => s + (l.min || 0), 0);
+  document.getElementById('todayMin').innerHTML = `${totalMin} <span>分鐘</span>`;
+  document.getElementById('todayBar').style.width = Math.min(100, (totalMin / goal) * 100) + '%';
+  document.getElementById('dailyGoalDisplay').textContent = goal;
+
+  const container = document.getElementById('todayLogs');
+  if (todayLogs.length === 0) {
+    container.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0;">今天還沒有記錄</div>';
+  } else {
+    container.innerHTML = todayLogs.map(l => `
+      <div class="log-item">
+        <div>
+          <div class="log-title">${l.title}</div>
+          <div class="log-detail">${l.note || ''}</div>
+        </div>
+        <div style="font-size:14px;font-weight:600;">${l.min} 分</div>
+      </div>
+    `).join('');
+  }
+
+  drawWeekChart();
+}
+
+function drawWeekChart() {
+  const canvas = document.getElementById('weekChart');
+  const ctx = canvas.getContext('2d');
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0,10));
+  }
+  const vals = days.map(d => logs.filter(l => l.date === d).reduce((s,l) => s+(l.min||0), 0));
+  const max = Math.max(...vals, goal, 1);
+  const W = canvas.width, H = canvas.height;
+  const pad = 20, barW = (W - pad*2) / 7 * 0.6, gap = (W - pad*2) / 7;
+  ctx.clearRect(0, 0, W, H);
+  // 目標線
+  ctx.strokeStyle = '#ddd'; ctx.setLineDash([4,4]);
+  const gy = H - pad - (goal / max) * (H - pad * 2);
+  ctx.beginPath(); ctx.moveTo(pad, gy); ctx.lineTo(W - pad, gy); ctx.stroke();
+  ctx.setLineDash([]);
+  // 柱狀
+  vals.forEach((v, i) => {
+    const x = pad + i * gap + gap/2 - barW/2;
+    const barH = (v / max) * (H - pad * 2);
+    const y = H - pad - barH;
+    ctx.fillStyle = v >= goal ? '#2c2c2c' : '#ccc';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, y, barW, barH, 3) : ctx.rect(x, y, barW, barH);
+    ctx.fill();
+    // 日期標籤
+    const dayNames = ['日','一','二','三','四','五','六'];
+    const d = new Date(days[i] + 'T00:00:00');
+    ctx.fillStyle = '#aaa'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(dayNames[d.getDay()], x + barW/2, H - 4);
+  });
+}
+
+// ─── 新增記錄 ─────────────────────────────────────────────
+function openLogModal() {
+  const sel = document.getElementById('logBook');
+  sel.innerHTML = books.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
+  if (books.length === 0) sel.innerHTML = '<option>（先在書架頁面新增書籍）</option>';
+  document.getElementById('logModal').classList.add('open');
+}
+function closeLogModal() { document.getElementById('logModal').classList.remove('open'); }
+
+function saveLog() {
+  const bookId = document.getElementById('logBook').value;
+  const min    = parseInt(document.getElementById('logMin').value);
+  const note   = document.getElementById('logNote').value.trim();
+  if (!bookId || !min) { alert('請選擇書籍並填入分鐘數'); return; }
+  const book = books.find(b => b.id === bookId);
+  logs.push({ date: new Date().toISOString().slice(0,10), bookId, title: book ? book.title : bookId, min, note });
+  saveLogs();
+  closeLogModal();
+  renderToday();
+}
+
+// ─── 目標設定 ─────────────────────────────────────────────
+function saveGoal() {
+  const v = parseInt(document.getElementById('goalInput').value);
+  if (v > 0) { goal = v; DB.set('goal', v); renderToday(); alert('目標已更新！'); }
+}
+
+// ─── 初始化 ───────────────────────────────────────────────
+(function init() {
+  const token = DB.get('wereadToken');
+  if (token) {
+    document.getElementById('wereadToken').value = token;
+    document.getElementById('wereadDot').className = 'status-dot ok';
+  }
+  document.getElementById('goalInput').value = goal;
+  renderToday();
+  if (books.length > 0) document.getElementById('kindleDot').className = books.some(b=>b.source==='kindle') ? 'status-dot ok' : 'status-dot';
+})();
+</script>
+</body>
+</html>
