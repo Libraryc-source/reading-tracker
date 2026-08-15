@@ -323,7 +323,27 @@ function filterShelf(f, el) {
   el.classList.add('active');
   renderShelf(f);
 }
-
+// 自動分類邏輯
+function autoClassify(book) {
+  // 微信讀書：根據 readingProgress 判斷
+  if (book.source === 'weread') {
+    if (book.progress >= 100) return 'done';
+    if (book.progress > 0)    return 'reading';
+    return 'unread';
+  }
+  // Kindle：根據有無筆記 + 最後閱讀日期判斷
+  if (book.source === 'kindle') {
+    if (!book.notes || book.notes.length === 0) return 'unread';
+    // 最後筆記距今超過 180 天 → 視為擱置
+    if (book.lastDate) {
+      const last = new Date(book.lastDate);
+      const diffDays = (Date.now() - last) / 86400000;
+      if (diffDays > 180) return 'paused';
+    }
+    return 'reading';
+  }
+  return 'unread';
+}
 function renderShelf(filter) {
   const grid = document.getElementById('bookGrid');
   const empty = document.getElementById('shelfEmpty');
