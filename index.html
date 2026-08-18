@@ -29,7 +29,10 @@
   .status-dot.err { background: #f44336; }
 
   /* Shelf */
-  .shelf-controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .shelf-controls
+<button class="filter-btn" onclick="filterShelf('paused',this)">已擱置</button>
+<button class="filter-btn" onclick="filterShelf('unread',this)">未開始</button>
+ { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
   .filter-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid #ddd; background: #fff; }
   .filter-btn.active { background: #2c2c2c; color: #fff; border-color: #2c2c2c; }
   .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
@@ -228,7 +231,7 @@ function fetchWereadShelf(token) {
   const msg = document.getElementById('wereadMsg');
   
   // 嘗試呼叫（實際部署後會成功）
-  fetch(\https://weread-proxy.celia-si-kok.workers.dev/proxy?path=/api/shelf/sync&token=${token}\`)`	
+  fetch(`https://weread-proxy.celia-si-kok.workers.dev/proxy?path=/api/shelf/sync&token=${token}\`)`	
     .then(r => r.json())
     .then(data => {
       if (data.books && data.books.length > 0) {
@@ -322,6 +325,8 @@ function filterShelf(f, el) {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   renderShelf(f);
+if (filter === 'paused') list = books.filter(b => autoClassify(b) === 'paused');
+if (filter === 'unread') list = books.filter(b => autoClassify(b) === 'unread');
 }
 // 自動分類邏輯
 function autoClassify(book) {
